@@ -1,12 +1,45 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import DashboardImg from "../Images/DashboardImg.png";
 import PropTypes from 'prop-types';
 
-function AvailableDashboard({ dashboards, handleDeleteDashboard }) {
+function AvailableDashboard({ }) {
+  const [dashboards, setDashboards] = useState([]);
+
+  // Fetch dashboards from backend
+  useEffect(() => {
+    const fetchDashboards = async () => {
+      try {
+        const res = await fetch('http://localhost:3003');
+        const data = await res.json();
+        setDashboards(data);}
+      catch (error) {
+        console.error(error);
+      }
+    }
+    fetchDashboards();
+  },[])
+
+  // Function to delete a dashboard
+  const handleDeleteDashboard = async (path) => {
+    try {
+      const response = await fetch(`http://localhost:3003/dashboard/${path}`, {
+        method: 'DELETE',
+      });
+  
+      if (!response.ok) {
+        throw new Error('Failed to delete dashboard');
+      }
+  
+      setDashboards((prevDashboards) => prevDashboards.filter(dashboard => dashboard.path !== path));
+      alert('Dashboard Deleted');
+    } catch (error) {
+      console.error("Error deleting dashboard:", error);
+    }
+  };
+  
   return (
     <div className='absolute bottom-10'>
-      {/* Display header based on whether dashboards exist */}
       {Array.isArray(dashboards) && dashboards.length ? (
         <h2 className='text-2xl font-bold text-[#062F6F] text-left px-5 mb-5'>Available Dashboards</h2>
       ) : (
@@ -14,7 +47,7 @@ function AvailableDashboard({ dashboards, handleDeleteDashboard }) {
       )}
 
       <div className='flex'>
-        {/* Iterate through dashboards and render each */}
+        {/* Iterate through dashboards and render each dashboards*/}
         {dashboards.map((dashboard, index) => (
           <div className='flex flex-col text-start shadow-md w-52 rounded-md m-4' key={index}>
             {/* Delete button */}
@@ -37,7 +70,6 @@ function AvailableDashboard({ dashboards, handleDeleteDashboard }) {
   );
 }
 
-// Define prop types for type safety
 AvailableDashboard.propTypes = {
   dashboards: PropTypes.array.isRequired,
   handleDeleteDashboard: PropTypes.func.isRequired,
