@@ -1,103 +1,107 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import ChartWidget from '../components/widgets/ChartWidget';
-import TableWidget from '../components/widgets/TableWidget';
+import CreateTable from '../components/widgets/CreateTable';
 import WidgetDrawer from '../components/WidgetDrawer';
 import TableModal from '../components/TableModal';
-// import CreateTable from '../components/widgets/CreateTable';
 
 function Dashboard() {
   const { path } = useParams();
-  const [widgets, setWidgets] = useState([]);
+  const [widgets, setWidgets] = useState({ Table: [], Chart: [] });
   const [headings, setHeadings] = useState([]);
-  const [IsOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [currentWidgetId, setCurrentWidgetId] = useState(null);
+  const [pendingWidget, setPendingWidget] = useState(null);
 
-  //function to open the modal
-  function openModal(id) {
-      setCurrentWidgetId(id);
-      setIsOpen(true);
-  }
-
-  //function to get the stored dashboard
+  // Fetch dashboard data from backend
   useEffect(() => {
-    const storedDashboard = JSON.parse(localStorage.getItem(`dashboard_${path}`)) || [];
-    setWidgets(storedDashboard);
+    const fetchDashboard = async () => {
+      try {
+        const response = await fetch(`http://localhost:3003/dashboard/${path}`);
+        if (!response.ok) throw new Error('Failed to fetch dashboard');
+        
+        const data = await response.json();
+        console.log("Fetched dashboard data:", data.widgets);
+        setWidgets(data.widgets || { Table: [], Chart: [] });
+      } catch (error) {
+        console.error("Error fetching dashboard:", error);
+      }
+    };
+    fetchDashboard();
   }, [path]);
 
-  //function to receieve the new headings and update in widgets
-  function handleHeadings(id, headers) {
-    console.log("Received headings:", headers);
-    setWidgets((prevWidgets) => prevWidgets.map((widget) => (widget.id === id ? {...widget, headings: headers} : widget)));
+  // Open modal when a Table widget is added
+  function openModal(id) {
+    setCurrentWidgetId(id);
+    setIsOpen(true);
   }
 
-  //function to handle drop and 
+  // Save headings and add the table widget
+  function handleHeadings(id, selectedHeadings) {
+    console.log("Received headings:", selectedHeadings);
+    setHeadings(selectedHeadings);
+
+    if (pendingWidget) {
+      setWidgets(prevWidgets => ({
+        ...prevWidgets,
+        Table: [...prevWidgets.Table, { [id]: { ...pendingWidget, headings: selectedHeadings } }]
+      }));
+      setPendingWidget(null);
+    }
+  }
+
+  // Save dashboard with updated widgets
+  const saveDashboardToBackend = async () => {
+    console.log("Saving dashboard:", widgets);
+    try {
+      const response = await fetch(`http://localhost:3003/dashboard/${path}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ widgets }),
+      });
+
+      if (!response.ok) throw new Error('Failed to save dashboard');
+      alert('Dashboard saved successfully!');
+    } catch (error) {
+      console.error("Error saving dashboard:", error);
+    }
+  };
+
+  // Handle drop to add new widget
   const handleDrop = (e) => {
     e.preventDefault();
     const widgetType = e.dataTransfer.getData('widgetType');
     if (!widgetType) return;
-    let newWidget = {}
-    if(widgetType == "Table"){
-      const id = `widget_${Date.now()}`;
-      newWidget = {
-        id: id,
-        type: widgetType,
-        x: 350,
-        y: 50,
-        width: 500,
-        height: 300,
-        headings : headings,
-      };
-      openModal(id);
+
+    const widgetId = `widget_${Date.now()}`;
+    let newWidget = { height: "300px", width: "500px" };
+
+    if (widgetType === "Table") {
+      setPendingWidget(newWidget);
+      openModal(widgetId);
+    } else if (widgetType === "Chart") {
+      newWidget = { ...newWidget, chartType: "Line", savedfilters: { startDate: "2024-12-14", endDate: "2025-11-14" } };
+      setWidgets(prevWidgets => ({
+        ...prevWidgets,
+        Chart: [...prevWidgets.Chart, { [widgetId]: newWidget }]
+      }));
     }
-    else if(widgetType == "Chart"){
-      newWidget = {
-        id: `widget_${Date.now()}`,
-        type: widgetType,
-        x: 350,
-        y: 50,
-        width: 500,
-        height: 300,
-        chartType: 'Bar',
-        filters: { startDate: '2024-03-16', endDate: '2025-08-20' },
-      }
-    }
-    
-    setWidgets((prevWidgets) => Array.isArray(prevWidgets) ? [...prevWidgets, newWidget] : [newWidget]);
   };
 
-  //function to update widget's position and dimension
-  const updateWidgetPosition = (id, x, y, width, height) => {
-    setWidgets((prevWidgets) =>
-      prevWidgets.map((widget) => (widget.id === id ? { ...widget, x, y, width, height } : widget))
-    );
-  };
-
-  //function to update type of the chart
-  const updateChartType = (id, chartType) => {
-    setWidgets((prevWidgets) =>
-      prevWidgets.map((widget) => (widget.id === id ? { ...widget, chartType } : widget))
-    );
-  };
-
-  //function to update start date and end date for the chart
-  const updateFilters = (id, startDate, endDate) => {
-    setWidgets((prevWidgets) =>
-      prevWidgets.map((widget) =>
-        widget.id === id ? { ...widget, filters: { startDate, endDate } } : widget
-      )
-    );
-  };
-
-  //function to delete widget
+  // Delete widget by id
   const handleDeleteWidget = (id) => {
-    setWidgets((prevWidgets) => prevWidgets.filter(widget => widget.id !== id));
-  };
+    setWidgets(prevWidgets => {
+      const updatedWidgets = { ...prevWidgets };
 
-  //function to publish and store the data of the dashboard
-  const handlePublishDashboard = () => {
-    localStorage.setItem(`dashboard_${path}`, JSON.stringify(widgets));
-    alert('Dashboard Published!');
+      for (const type in updatedWidgets) {
+        updatedWidgets[type] = updatedWidgets[type].filter(widget => {
+          const widgetId = Object.keys(widget)[0];
+          return widgetId !== id;
+        });
+      }
+
+      return updatedWidgets;
+    });
   };
 
   return (
@@ -110,56 +114,61 @@ function Dashboard() {
             <WidgetDrawer key={index} name={widget} type={widget} />
           ))}
         </div>
-        <Link to="/" onClick={handlePublishDashboard} className='bg-[#5779E8] mx-4 p-2 hover:bg-[#062F6F] text-white font-bold rounded mt-4'>
+        <Link to="/" onClick={saveDashboardToBackend} className='bg-[#5779E8] mx-4 p-2 hover:bg-[#062F6F] text-white font-bold rounded mt-4'>
           Publish
         </Link>
       </div>
 
       {/* Main Dashboard Area */}
       <div className='w-4/5 text-center' onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
-        <h1 className='font-bold text-[#062F6F]'>YOUR DASHBOARD </h1>
-        {Array.isArray(widgets) ? widgets.map((widget) => {
-      if (widget.type === 'Chart') {
-        return (
-          <ChartWidget
-          key={widget.id}
-          id={widget.id}
-          x={widget.x}
-          y={widget.y}
-          width={widget.width}
-          height={widget.height}
-          chartType={widget.chartType}
-          updatePosition={updateWidgetPosition}
-          updateChartType={updateChartType}
-          updateFilters={updateFilters}
-          savedFilters={widget.filters}
-          handleDeleteWidget={handleDeleteWidget}
-          />
-        );
-      } else if (widget.type === 'Table') {
-        return (
-          <TableWidget
-          key={widget.id}
-          id={widget.id}
-          x={widget.x}
-          y={widget.y}
-          headings={widget.headings || ['Manufacturer']}
-          width={widget.width}
-          height={widget.height}
-          updatePosition={updateWidgetPosition}
-          handleDeleteWidget={handleDeleteWidget}
-          />
-        );
-      }
-      else{
-        return null;
-      }
-    }) : <p>No widgets available</p>}
-    <TableModal id={currentWidgetId} headings={headings} setHeadings={setHeadings} IsOpen={IsOpen} setIsOpen={setIsOpen} handleHeadings={handleHeadings} />
-    <div>
-      {/* <CreateTable /> */}
-    </div>
+        <h1 className='font-bold text-[#062F6F]'>YOUR DASHBOARD</h1>
+        {Object.entries(widgets).map(([type, widgetArray]) =>
+          widgetArray.map(widgetObj => {
+            const [widgetId, widgetData] = Object.entries(widgetObj)[0];
+
+            return type === "Chart" ? (
+              <ChartWidget
+                key={widgetId}
+                id={widgetId}
+                savedFilters={widgetData.savedfilters} // Pass savedFilters here
+                {...widgetData}
+                updatePosition={(id, x, y, width, height) => setWidgets(prev => ({
+                  ...prev, [type]: prev[type].map(w => w[id] ? { [id]: { ...w[id], x, y, width, height } } : w)
+                }))}
+                updateChartType={(id, chartType) => setWidgets(prev => ({
+                  ...prev, [type]: prev[type].map(w => w[id] ? { [id]: { ...w[id], chartType } } : w)
+                }))}
+                updateFilters={(id, startDate, endDate) => setWidgets(prev => ({
+                  ...prev,
+                  [type]: prev[type].map(w => 
+                    w[id] 
+                      ? { [id]: { ...w[id], savedfilters: { startDate, endDate } } } 
+                      : w
+                  )
+                }))}
+                handleDeleteWidget={handleDeleteWidget}
+              />
+            ) : (
+              <CreateTable
+                key={widgetId}
+                id={widgetId}
+                {...widgetData}
+                updatePosition={(id, x, y, width, height) => setWidgets(prev => ({
+                  ...prev, [type]: prev[type].map(w => w[id] ? { [id]: { ...w[id], x, y, width, height } } : w)
+                }))}
+                handleDeleteWidget={handleDeleteWidget}
+              />
+            );
+          })
+        )}
       </div>
+      {/* Table Headings Selection Modal */}
+      <TableModal
+        id={currentWidgetId}
+        IsOpen={isOpen}
+        setIsOpen={setIsOpen}
+        handleHeadings={handleHeadings}
+      />
     </div>
   );
 }

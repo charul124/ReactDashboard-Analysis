@@ -12,11 +12,15 @@ const typeOfChart = { Bar: Bar, Line: Line, Pie: Pie };
 
 function ChartWidget({ id, x, y, width, height, chartType, updatePosition, updateChartType, updateFilters, savedFilters, handleDeleteWidget}) {
   
-  const [startDate, setStartDate] = useState(savedFilters?.startDate || '');
-  const [endDate, setEndDate] = useState(savedFilters?.endDate || '');
+  console.log("The saved filters are :",savedFilters);
+  
+  const [startDate, setStartDate] = useState(savedFilters?.startDate || "");
+  const [endDate, setEndDate] = useState(savedFilters?.endDate || "");
   const [filteredData, setFilteredData] = useState(chartDataSource); 
     
   const chartRef = useRef(null);
+  console.log("start date and end date are", startDate, endDate);
+  
 
   //to cleanup previous chart
   useEffect(() => {
@@ -77,7 +81,7 @@ function ChartWidget({ id, x, y, width, height, chartType, updatePosition, updat
   };
 
   //for dynamic chart type COMPONENT
-  const ChartComponent = typeOfChart[chartType];
+  const ChartComponent = typeOfChart[chartType] || Bar;
 
   return (
     <div
