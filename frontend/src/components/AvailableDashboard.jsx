@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import DashboardImg from "../Images/DashboardImg.png";
 import PropTypes from 'prop-types';
 
-function AvailableDashboard({ }) {
+function AvailableDashboard() {
   const [dashboards, setDashboards] = useState([]);
 
   // Fetch dashboards from backend

@@ -8,10 +8,9 @@ import TableModal from '../components/TableModal';
 function Dashboard() {
   const { path } = useParams();
   const [widgets, setWidgets] = useState({ Table: [], Chart: [] });
-  const [headings, setHeadings] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [currentWidgetId, setCurrentWidgetId] = useState(null);
-  const [pendingWidget, setPendingWidget] = useState(null);
+  // States to store the current Table widget id for headings
+  const [currentTableId, setCurrentTableId] = useState(null);
 
   // Fetch dashboard data from backend
   useEffect(() => {
@@ -21,7 +20,6 @@ function Dashboard() {
         if (!response.ok) throw new Error('Failed to fetch dashboard');
         
         const data = await response.json();
-        console.log("Fetched dashboard data:", data.widgets);
         setWidgets(data.widgets || { Table: [], Chart: [] });
       } catch (error) {
         console.error("Error fetching dashboard:", error);
@@ -32,22 +30,16 @@ function Dashboard() {
 
   // Open modal when a Table widget is added
   function openModal(id) {
-    setCurrentWidgetId(id);
+    setCurrentTableId(id);
     setIsOpen(true);
   }
 
   // Save headings and add the table widget
   function handleHeadings(id, selectedHeadings) {
-    console.log("Received headings:", selectedHeadings);
-    setHeadings(selectedHeadings);
-
-    if (pendingWidget) {
-      setWidgets(prevWidgets => ({
-        ...prevWidgets,
-        Table: [...prevWidgets.Table, { [id]: { ...pendingWidget, headings: selectedHeadings } }]
-      }));
-      setPendingWidget(null);
-    }
+    setWidgets(prevWidgets => ({
+      ...prevWidgets,
+      Table: [...prevWidgets.Table, { [id]: { height: "300px", width: "500px", headings: selectedHeadings } }]
+    }));
   }
 
   // Save dashboard with updated widgets
@@ -74,19 +66,24 @@ function Dashboard() {
     if (!widgetType) return;
 
     const widgetId = `widget_${Date.now()}`;
-    let newWidget = { height: "300px", width: "500px" };
+    let newWidget = { height: "300px", width: "500px", x: e.clientX, y: e.clientY };
 
     if (widgetType === "Table") {
-      setPendingWidget(newWidget);
       openModal(widgetId);
     } else if (widgetType === "Chart") {
-      newWidget = { ...newWidget, chartType: "Line", savedfilters: { startDate: "2024-12-14", endDate: "2025-11-14" } };
+      newWidget = { ...newWidget, chartType: "Bar", savedfilters: { startDate: "2024-12-14", endDate: "2025-11-14" } };
       setWidgets(prevWidgets => ({
         ...prevWidgets,
         Chart: [...prevWidgets.Chart, { [widgetId]: newWidget }]
       }));
     }
   };
+
+  // Update widget position and size
+  const updatePosition = (id,type, x, y, width, height) => 
+    setWidgets(prev => ({
+    ...prev, [type]: prev[type].map(widget => widget[id] ? { [id]: { ...widget[id], x, y, width, height } } : widget)
+  }))
 
   // Delete widget by id
   const handleDeleteWidget = (id) => {
@@ -107,7 +104,7 @@ function Dashboard() {
   return (
     <div className='flex h-screen mt-3'>
       {/* Sidebar */}
-      <div className='border-r-2 flex flex-col text-center w-1/5 border-gray-500'>
+      <div className='border-r-2 flex flex-col text-center border-gray-500'>
         <h1 className='font-bold text-[#062F6F]'>WIDGETS</h1>
         <div>
           {['Chart', 'Table'].map((widget, index) => (
@@ -120,7 +117,7 @@ function Dashboard() {
       </div>
 
       {/* Main Dashboard Area */}
-      <div className='w-4/5 text-center' onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
+      <div className='w-full text-center' onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
         <h1 className='font-bold text-[#062F6F]'>YOUR DASHBOARD</h1>
         {Object.entries(widgets).map(([type, widgetArray]) =>
           widgetArray.map(widgetObj => {
@@ -130,20 +127,19 @@ function Dashboard() {
               <ChartWidget
                 key={widgetId}
                 id={widgetId}
-                savedFilters={widgetData.savedfilters} // Pass savedFilters here
+                savedFilters={widgetData.savedfilters}
                 {...widgetData}
-                updatePosition={(id, x, y, width, height) => setWidgets(prev => ({
-                  ...prev, [type]: prev[type].map(w => w[id] ? { [id]: { ...w[id], x, y, width, height } } : w)
-                }))}
-                updateChartType={(id, chartType) => setWidgets(prev => ({
-                  ...prev, [type]: prev[type].map(w => w[id] ? { [id]: { ...w[id], chartType } } : w)
+                updatePosition={(id, x, y, width, height) => updatePosition(id, type, x, y, width, height)}
+                updateChartType={(id, chartType) => 
+                  setWidgets(prev => ({
+                  ...prev, [type]: prev[type].map(widget => widget[id] ? { [id]: { ...widget[id], chartType } } : widget)
                 }))}
                 updateFilters={(id, startDate, endDate) => setWidgets(prev => ({
                   ...prev,
-                  [type]: prev[type].map(w => 
-                    w[id] 
-                      ? { [id]: { ...w[id], savedfilters: { startDate, endDate } } } 
-                      : w
+                  [type]: prev[type].map(widget => 
+                    widget[id] 
+                      ? { [id]: { ...widget[id], savedfilters: { startDate, endDate } } } 
+                      : widget
                   )
                 }))}
                 handleDeleteWidget={handleDeleteWidget}
@@ -153,9 +149,7 @@ function Dashboard() {
                 key={widgetId}
                 id={widgetId}
                 {...widgetData}
-                updatePosition={(id, x, y, width, height) => setWidgets(prev => ({
-                  ...prev, [type]: prev[type].map(w => w[id] ? { [id]: { ...w[id], x, y, width, height } } : w)
-                }))}
+                updatePosition={(id, x, y, width, height) => updatePosition(id, type, x, y, width, height)}
                 handleDeleteWidget={handleDeleteWidget}
               />
             );
@@ -164,7 +158,7 @@ function Dashboard() {
       </div>
       {/* Table Headings Selection Modal */}
       <TableModal
-        id={currentWidgetId}
+        id={currentTableId}
         IsOpen={isOpen}
         setIsOpen={setIsOpen}
         handleHeadings={handleHeadings}

@@ -1,27 +1,32 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import React from "react";
 import Modal from 'react-modal';
 import PropTypes from 'prop-types';
 
-function CreateModal({ dashboards, setDashboards, modalIsOpen, setIsOpen }) {
+function CreateDashboardModal({ modalIsOpen, setIsOpen }) {
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
     const [path, setPath] = useState("");
     const navigate = useNavigate();
-    const widgets = {"Table": [], "Chart": []};
 
+    // Close the modal
+    function closeModal() {
+        setIsOpen(false);
+    }
+
+    // Function to handle form submission and send dashboard data to the server
     const dashboardData = async (e) => {
         e.preventDefault();
         try {
             const requestBody = { 
                 name, 
                 description, 
-                path, 
-                widgets: { Table: [], Chart: [] }
+                path,
             };
             console.log("Request Body:", requestBody);
     
+            // Send a POST request to the server with the dashboard data
             let result = await fetch('http://localhost:3003/post', {
                 method: 'POST',
                 headers: {
@@ -33,8 +38,6 @@ function CreateModal({ dashboards, setDashboards, modalIsOpen, setIsOpen }) {
             result = await result.json();
             console.log("Response:", result);
     
-            setDashboards([...dashboards, result]);
-    
             setName("");
             setDescription("");
             setPath("");
@@ -44,11 +47,6 @@ function CreateModal({ dashboards, setDashboards, modalIsOpen, setIsOpen }) {
             console.error("Error posting dashboard:", err);
         }
     };
-    
-
-    function closeModal() {
-        setIsOpen(false);
-    }
 
     const modalStyles = {
         overlay: {
@@ -65,6 +63,7 @@ function CreateModal({ dashboards, setDashboards, modalIsOpen, setIsOpen }) {
                 style={modalStyles}
             >
                 <div className="mt-3">
+                    {/* Modal content */}
                     <form className="p-5" onSubmit={dashboardData}>
                         <div className="flex mb-3 flex-col">
                             <label className="text-lg font-bold" htmlFor="dashboard-name">Dashboard Name:</label>
@@ -126,11 +125,13 @@ function CreateModal({ dashboards, setDashboards, modalIsOpen, setIsOpen }) {
     );
 }
 
-CreateModal.propTypes = {
+
+// Define prop types for the component
+CreateDashboardModal.propTypes = {
     modalIsOpen: PropTypes.bool.isRequired,
     dashboards: PropTypes.array,
     setDashboards: PropTypes.func.isRequired,
     setIsOpen: PropTypes.func.isRequired
 };
 
-export default CreateModal;
+export default CreateDashboardModal;

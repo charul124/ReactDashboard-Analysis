@@ -98,7 +98,7 @@ function CreateTable({ id, x, y, headings, width, height, updatePosition, handle
         {/* populating all the headings */}
         <thead>
           <tr>
-            {headers.map((heading) => (
+            {headers?.map((heading) => (
               <th key={heading} onClick={() => handleHeaderClick(heading)} className='border p-1 hover:bg-[#D0DBF8] active:bg-[#aac0ff]'>
                 <div className='flex gap-2 justify-center'>
                   {heading}<HiMiniArrowsUpDown className='mt-1'/> 

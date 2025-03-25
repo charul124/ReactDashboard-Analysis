@@ -1,36 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import AvailableDashboard from '../components/AvailableDashboard';
-import CreateModal from '../components/CreateModal';
+import CreateDashboardModal from '../components/CreateDashboardModal';
 
 // Home Component - Main page for creating and managing dashboards.
 function Home() {
-    // State to store the list of dashboards and modal visibility
-    const [dashboards, setDashboards] = useState([]);
     const [modalIsOpen, setIsOpen] = useState(false);
-
-    //Load dashboards from localStorage when the component mounts.
-    useEffect(() => {
-        const storedDashboards = JSON.parse(localStorage.getItem('dashboards')) || [];
-        setDashboards(storedDashboards);
-    }, []);
     
     //Open the create dashboard modal.
     function openModal() {
         setIsOpen(true);
     }
-
-    //Delete the dashboard with the given path.
-    const handleDeleteDashboard = (path) => {
-        console.log("Deleting dashboard with path:", path);
-        const updatedDashboards = dashboards.filter(dashboard => dashboard.path !== path);
-        // Update the state with the new dashboards list
-        setDashboards(updatedDashboards);
-
-        // Store updated dashboards list in localStorage
-        localStorage.setItem('dashboards', JSON.stringify(updatedDashboards));
-        alert("Dashboard Deleted");
-    };
-
+    
     return (
         <div className="text-center">
             {/* Page header */}
@@ -47,18 +27,13 @@ function Home() {
             </div>
 
             {/* Render the Create Modal */}
-            <CreateModal 
-                dashboards={dashboards} 
-                setDashboards={setDashboards} 
+            <CreateDashboardModal
                 modalIsOpen={modalIsOpen} 
                 setIsOpen={setIsOpen} 
             />
 
             {/* Render Available Dashboards */}
-            <AvailableDashboard 
-                dashboards={dashboards} 
-                handleDeleteDashboard={handleDeleteDashboard} 
-            />
+            <AvailableDashboard />
         </div>
     );
 }
